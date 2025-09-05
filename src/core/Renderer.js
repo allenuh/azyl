@@ -26,7 +26,7 @@ export default class Renderer{
 
     onWindowResize() {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(this.sizes.pixelRatio);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
     }
 
     update() {

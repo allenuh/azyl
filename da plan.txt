@@ -1,7 +1,7 @@
 by august:
 
 22:
-- good enough terrain
+- good enough terrain (done)
 
 23:
 - trees and foliage

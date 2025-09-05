@@ -11,7 +11,7 @@ export default class Player {
         this.clock = this.app.clock;
         // this.time = this.app.time;
         
-        this.collider = new Capsule(new THREE.Vector3(0, 0.35, 0), new THREE.Vector3(0, 1, 0), 0.35);
+        this.collider = new Capsule(new THREE.Vector3(0, 0.35, 0), new THREE.Vector3(0, 2, 0), 0.35);
         this.velocity = new THREE.Vector3();
         this.direction = new THREE.Vector3();
         

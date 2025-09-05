@@ -4,11 +4,11 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
+// import Sizes from './utils/Sizes.js';
+import Resources from "./utils/Resources.js"
+
 import Lights from './core/Lights.js';
 import Renderer from './core/Renderer.js';
-
-// import Sizes from './utils/Sizes.js';
-
 import World from './components/World.js'
 import Player from './components/Player.js';
 import Spheres from './components/Spheres.js';
@@ -30,14 +30,14 @@ export default class App {
         this.setLights();
         this.setCamera();
         this.setRenderer();
+        this.setResources();
         this.setWorld();
         this.setPlayer();
         this.setSpheres();
         this.setStats();
+        this.update();
 
         window.addEventListener('resize', () => this.onWindowResize());
-
-        this.update(); // this needs to be called for renderer to start (look into why l8r)
     }
 
     init() {
@@ -46,7 +46,6 @@ export default class App {
 
     setScene(){
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0xf8cbe9);
     }
 
     setLights(){
@@ -59,6 +58,10 @@ export default class App {
 
     setRenderer(){
         this.renderer = new Renderer();
+    }
+
+    setResources(){
+        this.resources = new Resources();
     }
 
     setWorld(){
@@ -78,7 +81,7 @@ export default class App {
 
     loadWorld() {
         const loader = new GLTFLoader().setPath('/src/assets/models/');
-        loader.load('azylworld.glb', (gltf) => {
+        loader.load('azylworld5.glb', (gltf) => {
             this.scene.add(gltf.scene);
             this.world.octree.fromGraphNode(gltf.scene);
 
