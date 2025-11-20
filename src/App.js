@@ -4,8 +4,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
-// import Sizes from './utils/Sizes.js';
 import Resources from "./utils/Resources.js"
+import ChatOverlay from "./components/ChatOverlay.js";
+import ChatClient from "./services/ChatClient.js";
 
 import Lights from './core/Lights.js';
 import Renderer from './core/Renderer.js';
@@ -15,14 +16,12 @@ import Spheres from './components/Spheres.js';
 import Camera from './core/Camera.js';
 
 export default class App {
-    static instance; // singleton
-  
+    static instance;
+
     constructor(canvas) {
-        if (App.instance) { // check if instance exists & return
-            return App.instance;
-        }
+        if (App.instance) return App.instance;
         App.instance = this;
-        
+
         this.canvas = canvas;
         this.clock = new THREE.Clock();
 
@@ -35,8 +34,8 @@ export default class App {
         this.setPlayer();
         this.setSpheres();
         this.setStats();
+        this.setChat();
         this.update();
-
         window.addEventListener('resize', () => this.onWindowResize());
     }
 
@@ -79,6 +78,25 @@ export default class App {
     setEvents(){
     }
 
+    setChat() {
+        this.chatClient = new ChatClient();
+        this.chatOverlay = new ChatOverlay({
+            mountNode: document.body,
+            chatClient: this.chatClient,
+            onFocusChange: (isFocused) => this.handleChatFocus(isFocused),
+        });
+        this.chatClient.connect();
+    }
+
+    handleChatFocus(isFocused) {
+        if (!this.player) return;
+        if (isFocused) {
+            this.player.disableControls();
+        } else {
+            this.player.enableControls();
+        }
+    }
+
     loadWorld() {
         const loader = new GLTFLoader().setPath('/src/assets/models/');
         loader.load('azylworld5.glb', (gltf) => {
@@ -86,10 +104,10 @@ export default class App {
             this.world.octree.fromGraphNode(gltf.scene);
 
             gltf.scene.traverse((child) => {
-            if (child.isMesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
-            }
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
             });
 
             const helper = new OctreeHelper(this.world.octree);
@@ -114,21 +132,15 @@ export default class App {
     }
 
     update() {
-        const deltaTime = Math.min(0.05, this.clock.getDelta()) / 1; // magic number 1, could be anything
+        const dt = Math.min(0.05, this.clock.getDelta()) / 1;
 
-        this.player.update(deltaTime);
-        this.spheres.update(deltaTime);
-        
-        // for (let i = 0; i < 5; i++) {
-        //     this.player.update(deltaTime);
-        //     this.spheres.update(deltaTime);
-        // }
+        // Your local game sim
+        this.player.update(dt);
+        this.spheres.update(dt);
 
         this.renderer.update();
         this.stats.update();
 
-        window.requestAnimationFrame(() => {
-            this.update();
-        });
+        window.requestAnimationFrame(() => this.update());
     }
 }

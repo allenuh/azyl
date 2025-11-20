@@ -17,6 +17,7 @@ export default class Player {
         
         this.GRAVITY = 30;
         this.keyStates = {};
+        this.controlsEnabled = true;
         this.onFloor = false;
 
         this.initControls();
@@ -56,9 +57,18 @@ export default class Player {
     }
 
     initControls() {
-        document.addEventListener('keydown', (e) => (this.keyStates[e.code] = true));
-        document.addEventListener('keyup', (e) => (this.keyStates[e.code] = false));
+        document.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        document.addEventListener('keyup', (e) => this.handleKeyUp(e));
         document.body.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+    }
+
+    handleKeyDown(event) {
+        if (!this.controlsEnabled) return;
+        this.keyStates[event.code] = true;
+    }
+
+    handleKeyUp(event) {
+        this.keyStates[event.code] = false;
     }
 
     handleMouseMove(event) {
@@ -70,6 +80,7 @@ export default class Player {
     }
 
     controls(deltaTime) {
+        if (!this.controlsEnabled) return;
         const speed = deltaTime * (this.onFloor ? 25 : 8);
         if (this.keyStates['KeyW']) this.velocity.add(this.getForward().multiplyScalar(speed));
         if (this.keyStates['KeyS']) this.velocity.add(this.getForward().multiplyScalar(-speed));
@@ -119,5 +130,21 @@ export default class Player {
 
         this.checkCollisions();
         this.camera.fpsCamera.position.copy(this.collider.end);
+    }
+
+    disableControls() {
+        this.controlsEnabled = false;
+        this.clearKeyStates();
+    }
+
+    enableControls() {
+        this.controlsEnabled = true;
+        this.clearKeyStates();
+    }
+
+    clearKeyStates() {
+        Object.keys(this.keyStates).forEach((code) => {
+            this.keyStates[code] = false;
+        });
     }
 }
