@@ -11,7 +11,13 @@ export default class Environment{
     }
 
     setEnvironment() {
-        this.scene.background = new THREE.Color(0xd8abee); // 0xf8cbee originally
-        this.scene.fog = new THREE.Fog( 0xb89bee, 10, 100 );
+        // this.scene.background = new THREE.Color(0xd8abee); // 0xf8cbee originally
+        // this.scene.fog = new THREE.Fog( 0xb89bee, 10, 100 );
+
+        // this.scene.background = new THREE.Color(0x990000); // red
+        // this.scene.fog = new THREE.Fog( 0x660000, 20, 100 );
+        
+        this.scene.background = new THREE.Color(0x44006b); // red
+        this.scene.fog = new THREE.Fog( 0x25004e, 1, 100 );
     }
 }

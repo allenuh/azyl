@@ -98,25 +98,42 @@ export default class App {
     }
 
     loadWorld() {
-        const loader = new GLTFLoader().setPath('/src/assets/models/');
-        loader.load('azylworld5.glb', (gltf) => {
-            this.scene.add(gltf.scene);
-            this.world.octree.fromGraphNode(gltf.scene);
+        // const loader = new GLTFLoader().setPath('/src/assets/models/');
+        // loader.load('azylworld5.glb', (gltf) => {
+        //     this.scene.add(gltf.scene);
+        //     this.world.octree.fromGraphNode(gltf.scene);
 
-            gltf.scene.traverse((child) => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
-            });
+        //     gltf.scene.traverse((child) => {
+        //         if (child.isMesh) {
+        //             child.castShadow = true;
+        //             child.receiveShadow = true;
+        //         }
+        //     });
 
-            const helper = new OctreeHelper(this.world.octree);
-            helper.visible = false;
-            this.scene.add(helper);
+        //     const helper = new OctreeHelper(this.world.octree);
+        //     helper.visible = false;
+        //     this.scene.add(helper);
 
-            const gui = new GUI( { width: 200 } );
-            gui.add({ debug: false }, 'debug').onChange((v) => (helper.visible = v));
-        });
+        //     const gui = new GUI( { width: 200 } );
+        //     gui.add({ debug: false }, 'debug').onChange((v) => (helper.visible = v));
+        // });
+        const planeGeometry = new THREE.PlaneGeometry(200, 200, 10, 10);
+        const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+        const floor = new THREE.Mesh(planeGeometry, planeMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        this.scene.add(floor);
+        this.world.octree.fromGraphNode(floor);
+
+        const grid = new THREE.GridHelper(200, 40, 0x000000, 0x000000);
+        this.scene.add(grid);
+        
+        const helper = new OctreeHelper(this.world.octree);
+        helper.visible = false;
+        this.scene.add(helper);
+
+        const gui = new GUI( { width: 200 } );
+        gui.add({ debug: false }, 'debug').onChange((v) => (helper.visible = v));
     }
 
     setStats() {
