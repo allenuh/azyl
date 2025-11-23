@@ -6,6 +6,7 @@ export default class Environment{
         this.app = new App();
         this.scene = this.app.scene;
         this.resources = this.app.resources;
+        this.textureLoader = new THREE.TextureLoader();
 
         this.setEnvironment();
     }
@@ -17,7 +18,24 @@ export default class Environment{
         // this.scene.background = new THREE.Color(0x990000); // red
         // this.scene.fog = new THREE.Fog( 0x660000, 20, 100 );
         
-        this.scene.background = new THREE.Color(0x44006b); // red
-        this.scene.fog = new THREE.Fog( 0x25004e, 1, 100 );
+        // this.scene.background = new THREE.Color(0x44006b); // purple
+        // this.scene.fog = new THREE.Fog( 0x25004e, 1, 100 );
+
+        this.textureLoader.load("/src/assets/images/clear_sky.jpg", (jpgTexture) => {
+            jpgTexture.colorSpace = THREE.SRGBColorSpace;
+            let skySphereGeometry = new THREE.SphereGeometry(512, 60, 60);
+            let skySphereMaterial = new THREE.MeshBasicMaterial({
+                map: jpgTexture
+            });
+
+            skySphereMaterial.side = THREE.BackSide;
+            let skySphereMesh = new THREE.Mesh(skySphereGeometry, skySphereMaterial);
+
+            this.scene.add(skySphereMesh);
+        },
+        undefined,
+        (error) => {
+            console.error("Error loading texture:", error);
+        });
     }
 }

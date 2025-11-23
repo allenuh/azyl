@@ -8,5 +8,4 @@ import App from './App.js';
 
 const container = document.getElementById('container');
 
-const app = new App(container);
-app.init();
+new App(container);

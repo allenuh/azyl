@@ -1,13 +1,8 @@
 import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { OctreeHelper } from 'three/addons/helpers/OctreeHelper.js';
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-
 import Resources from "./utils/Resources.js"
 import ChatOverlay from "./components/ChatOverlay.js";
 import ChatClient from "./services/ChatClient.js";
-
 import Lights from './core/Lights.js';
 import Renderer from './core/Renderer.js';
 import World from './components/World.js'
@@ -18,12 +13,16 @@ import Camera from './core/Camera.js';
 export default class App {
     static instance;
 
-    constructor(canvas) {
+    constructor(container) {
         if (App.instance) return App.instance;
         App.instance = this;
 
-        this.canvas = canvas;
+        this.container = container;
+        this.canvas = container;
         this.clock = new THREE.Clock();
+
+        this.accumulator = 0;
+        this.fixedDelta = 1 / 128; // fixed time step of 128 Hz
 
         this.setScene();
         this.setLights();
@@ -36,11 +35,8 @@ export default class App {
         this.setStats();
         this.setChat();
         this.update();
-        window.addEventListener('resize', () => this.onWindowResize());
-    }
 
-    init() {
-        this.loadWorld();
+        window.addEventListener('resize', () => this.onWindowResize());
     }
 
     setScene(){
@@ -68,11 +64,17 @@ export default class App {
     }
 
     setPlayer(){
-        this.player = new Player();
+        this.player = new Player(this);
+        if (this.world){
+            this.world.setPlayer(this.player);
+        }
     }
 
     setSpheres(){
         this.spheres = new Spheres();
+        if (this.world){
+            this.world.setSpheres(this.spheres);
+        }
     }
 
     setEvents(){
@@ -97,45 +99,6 @@ export default class App {
         }
     }
 
-    loadWorld() {
-        // const loader = new GLTFLoader().setPath('/src/assets/models/');
-        // loader.load('azylworld5.glb', (gltf) => {
-        //     this.scene.add(gltf.scene);
-        //     this.world.octree.fromGraphNode(gltf.scene);
-
-        //     gltf.scene.traverse((child) => {
-        //         if (child.isMesh) {
-        //             child.castShadow = true;
-        //             child.receiveShadow = true;
-        //         }
-        //     });
-
-        //     const helper = new OctreeHelper(this.world.octree);
-        //     helper.visible = false;
-        //     this.scene.add(helper);
-
-        //     const gui = new GUI( { width: 200 } );
-        //     gui.add({ debug: false }, 'debug').onChange((v) => (helper.visible = v));
-        // });
-        const planeGeometry = new THREE.PlaneGeometry(200, 200, 10, 10);
-        const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
-        const floor = new THREE.Mesh(planeGeometry, planeMaterial);
-        floor.rotation.x = -Math.PI / 2;
-        floor.receiveShadow = true;
-        this.scene.add(floor);
-        this.world.octree.fromGraphNode(floor);
-
-        const grid = new THREE.GridHelper(200, 40, 0x000000, 0x000000);
-        this.scene.add(grid);
-        
-        const helper = new OctreeHelper(this.world.octree);
-        helper.visible = false;
-        this.scene.add(helper);
-
-        const gui = new GUI( { width: 200 } );
-        gui.add({ debug: false }, 'debug').onChange((v) => (helper.visible = v));
-    }
-
     setStats() {
         this.stats = new Stats();
         this.stats.domElement.style.position = 'absolute';
@@ -149,12 +112,16 @@ export default class App {
     }
 
     update() {
-        const dt = Math.min(0.05, this.clock.getDelta()) / 1;
+        const frameDelta = Math.min(0.05, this.clock.getDelta());
+        this.accumulator += frameDelta;
 
-        // Your local game sim
-        this.player.update(dt);
-        this.spheres.update(dt);
+        // fixed time step update for physics and world at this.fixedDelta
+        while (this.accumulator >= this.fixedDelta) {
+            this.world.update(this.fixedDelta);
+            this.accumulator -= this.fixedDelta;
+        }
 
+        // render current state
         this.renderer.update();
         this.stats.update();
 

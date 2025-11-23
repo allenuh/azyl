@@ -1,28 +1,15 @@
-by august:
+todo:
 
-22:
-- good enough terrain (done)
+- add character model
+- raycast gun
+    - target dummy
+    - ammo/reload
+- respawn/death
+- tick system
+- greybox an arena
+- sprint
+- crouch
 
-23:
-- trees and foliage
-
-24:
-- add chat system
-
-25:
 - multiplayer
-
-26:
-- multiplayer
-
-27:
-- multiplayer
-
-28:
-- multiplayer
-
-29:
-- polish UI
-
-30:
-- go live
+    - client side prediction
+    - lag 

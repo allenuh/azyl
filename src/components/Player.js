@@ -9,22 +9,53 @@ export default class Player {
         this.octree = this.app.world.octree;
         this.scene = this.app.scene;
         this.clock = this.app.clock;
-        this.collider = new Capsule(new THREE.Vector3(0, 0.35, 0), new THREE.Vector3(0, 2, 0), 0.35);
+
+        // simulation variables
+        this.collider = new Capsule(
+            new THREE.Vector3(0, 0.35, 0), 
+            new THREE.Vector3(0, 2, 0), 
+            0.35
+        );
+        this.position = this.collider.end;
         this.velocity = new THREE.Vector3();
+        this.onFloor = false;
         this.direction = new THREE.Vector3();
 
-        this.GRAVITY = 32;
-        this.keyStates = {};
-        this.mouseWheelJump = false; // mousewheel jump flag, fix later
-        this.controlsEnabled = true;
-        this.onFloor = false;
+        this.health = 100;
 
+        // movement variables/tuning
+        this.GRAVITY = 32;
+        this.maxGroundSpeed = 10;
+        this.maxAirSpeed = 5;
+        this.jumpSpeed = 10;
+
+        // input state
+        this.keyStates = {};
+        this.controlsEnabled = true;
+        this.mouseWheelJump = false; // mousewheel jump flag, fix later
+        this.isFiring = false;
+
+        // sensitivity
         this.sensitivity = 2000;
 
-        this.jumpSpeed = 10;
+        // raycast weapon
+        this.raycaster = new THREE.Raycaster();
+        this.raycaster.far = 100; // shooting range in units
+        this.fireRate = 10;
+        this.fireCooldown = 0;
+
         this.speedElement = this.createSpeedElement();
 
         this.initControls();
+    }
+    // TODO: Refactor input readings to use InputManager, to help with decoupling.
+    initControls() {
+        document.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        document.addEventListener('keyup', (e) => this.handleKeyUp(e));
+        document.body.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        document.body.addEventListener('wheel', (e) => this.handleMouseWheel(e));
+        document.body.addEventListener('mousedown', (e) => {this.handleMouseDown(e)});
+        document.body.addEventListener('mouseup', (e) => {this.handleMouseUp(e)});
     }
 
     initPlayer(){
@@ -60,14 +91,6 @@ export default class Player {
         this.otherPlayers = {};
     }
 
-    // TODO: Refactor input readings to use InputManager, to help with decoupling.
-    initControls() {
-        document.addEventListener('keydown', (e) => this.handleKeyDown(e));
-        document.addEventListener('keyup', (e) => this.handleKeyUp(e));
-        document.body.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        document.body.addEventListener('wheel', (e) => this.handleMouseWheel(e));
-    }
-
     handleKeyDown(event) {
         if (!this.controlsEnabled) return;
         this.keyStates[event.code] = true;
@@ -84,13 +107,33 @@ export default class Player {
     }
 
     handleMouseMove(event) {
+        if (!this.controlsEnabled) return;
         if (document.pointerLockElement === document.body) {
             this.camera.fpsCamera.rotation.y -= event.movementX / this.sensitivity;
             this.camera.fpsCamera.rotation.x -= event.movementY / this.sensitivity;
-            this.camera.fpsCamera.rotation.x = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, this.camera.fpsCamera.rotation.x));
+            // clamp vertical look angle (pitch)
+            const maxPitch = Math.PI / 2.5;
+            this.camera.fpsCamera.rotation.x = Math.max(
+                -maxPitch, 
+                Math.min(maxPitch, this.camera.fpsCamera.rotation.x)
+            );
+        }
+    }
+    
+    handleMouseDown(event) {
+        if (!this.controlsEnabled) return;
+        if (event.button === 0) {
+            this.isFiring = true;
         }
     }
 
+    handleMouseUp(event) {
+        if (event.button === 0) {
+            this.isFiring = false;
+        }
+    }
+
+    // reads "keyStates" and returns movement commands for this tick
     getMovementCommand() {
         let forwardMove = 0;
         let sideMove = 0;
@@ -106,12 +149,13 @@ export default class Player {
             wishDir.normalize();
         }
 
-        const wantsJump = this.keyStates['Space'] || this.mouseWheelJump;
+        const wantsJump = !!this.keyStates['Space'] || this.mouseWheelJump;
         this.mouseWheelJump = false; // reset mouse wheel jump flag
 
         return { wishDir, wantsJump };
     }
 
+    // get forward vector relative to camera yaw
     getForward() {
         const dir = new THREE.Vector3();
         this.camera.fpsCamera.getWorldDirection(dir);
@@ -120,6 +164,7 @@ export default class Player {
         return dir;
     }
 
+    // get side vector relative to camera yaw
     getSide() {
         const dir = new THREE.Vector3();
         this.camera.fpsCamera.getWorldDirection(dir);
@@ -129,7 +174,75 @@ export default class Player {
         return dir;
     }
 
+    // --- Physics / movement --- //
+    applyGroundFriction(dt) {
+        const friction = 12;
+        const stopSpeed = 5;
+
+        const vel = this.velocity.clone();
+        vel.y = 0; // horizontal only
+
+        const speed = vel.length();
+        if (speed < 0.0001) return;
+
+        // Quake-style friction
+        const control = Math.max(speed, stopSpeed);
+        const drop = control * friction * dt;
+
+        const newSpeed = Math.max(speed - drop, 0);
+        const scale = newSpeed / speed;
+
+        this.velocity.x *= scale;
+        this.velocity.z *= scale;
+    }
+
+    applyGravity(dt) {
+        this.velocity.y -= this.GRAVITY * dt;
+    }
+
+    // normalize wish direction so moving diagonally doesn't go faster which would result in sqrt(2) times normal speed
+    // use dot product so speed is only increased along the wish direction
+    // use explicit maxGroundSpeed and groundAcceleration
+    groundAccelerate(wishDir, maxSpeed, dt) {
+        if (!wishDir || wishDir.lengthSq() === 0) return; 
+
+        const accel = 50; // tune, ground acceleration
+        const wishSpeed = maxSpeed; // tune with scaling by input strength
+
+        // current speed along wish direction
+        const currentSpeed = this.velocity.dot(wishDir);
+        const addSpeed = wishSpeed - currentSpeed;
+        if (addSpeed <= 0) return;
+
+        let accelSpeed = accel * dt * wishSpeed;
+        if (accelSpeed > addSpeed) {
+            accelSpeed = addSpeed;
+        }
+
+        this.velocity.addScaledVector(wishDir, accelSpeed);
+    }
+
+    airAccelerate(wishDir, maxAirSpeed, dt) {
+        if (!wishDir || wishDir.lengthSq() === 0) return;
+
+        const accel = 40; // tune, air acceleration
+        const wishSpeed = maxAirSpeed; // tune with scaling by input strength
+        
+        const currentSpeed = this.velocity.dot(wishDir);
+        const addSpeed = wishSpeed - currentSpeed;
+        if (addSpeed <= 0) return;
+
+        let accelSpeed = accel * dt * wishSpeed;
+        if (accelSpeed > addSpeed) {
+            accelSpeed = addSpeed;
+        }
+
+        this.velocity.addScaledVector(wishDir, accelSpeed);
+    }
+
     checkCollisions() {
+        if (!this.octree) return;
+
         const result = this.octree.capsuleIntersect(this.collider); // avoids small "bumps" being treated as collisions (ground)
         this.onFloor = false;
 
@@ -153,98 +266,71 @@ export default class Player {
         }
     }
 
-    applyGroundFriction(dt) {
-        const friction = 12;   // tune
-        const stopSpeed = 5;  // tune
-
-        const vel = this.velocity.clone();
-        vel.y = 0; // horizontal only
-
-        const speed = vel.length();
-        if (speed < 0.0001) return;
-
-        // Quake-style friction
-        const control = Math.max(speed, stopSpeed);
-        const drop = control * friction * dt;
-
-        const newSpeed = Math.max(speed - drop, 0);
-        const scale = newSpeed / speed;
-
-        this.velocity.x *= scale;
-        this.velocity.z *= scale;
-    }
-
-    // normalize wish direction so moving diagonally doesn't go faster which would result in sqrt(2) times normal speed
-    // use dot product so speed is only increased along the wish direction
-    // use explicit maxGroundSpeed and groundAcceleration
-    groundAccelerate(wishDir, maxSpeed, deltaTime) {
-        if (!wishDir || wishDir.lengthSq() === 0) return; 
-
-        const accel = 50; // tune, ground acceleration
-        const wishSpeed = maxSpeed; // tune with scaling by input strength
-
-        // current speed along wish direction
-        const currentSpeed = this.velocity.dot(wishDir);
-        const addSpeed = wishSpeed - currentSpeed;
-        if (addSpeed <= 0) return;
-
-        let accelSpeed = accel * deltaTime * wishSpeed;
-        if (accelSpeed > addSpeed) {
-            accelSpeed = addSpeed;
+    // --- Raycast weapon --- //
+    tryShoot(dt) {
+        this.fireCooldown -= dt;
+        if (this.fireCooldown < 0) {
+            this.fireCooldown = 0;
         }
 
-        this.velocity.addScaledVector(wishDir, accelSpeed);
+        if (!this.isFiring) return;
+        if (this.fireCooldown > 0) return;
+
+        // reset cooldown
+        this.fireCooldown = 1 / this.fireRate;
+        this.performRaycastShot();
     }
 
-    airAccelerate(wishDir, maxAirSpeed, deltaTime) {
-        if (!wishDir || wishDir.lengthSq() === 0) return;
+    performRaycastShot() {
+        const origin = this.camera.fpsCamera.position.clone();
+        const direction = new THREE.Vector3();
+        this.camera.fpsCamera.getWorldDirection(direction);
 
-        const accel = 40; // tune, air acceleration
-        const wishSpeed = maxAirSpeed; // tune with scaling by input strength
-        
-        const currentSpeed = this.velocity.dot(wishDir);
-        const addSpeed = wishSpeed - currentSpeed;
-        if (addSpeed <= 0) return;
+        this.raycaster.set(origin, direction);
 
-        let accelSpeed = accel * deltaTime * wishSpeed;
-        if (accelSpeed > addSpeed) {
-            accelSpeed = addSpeed;
+        const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+        if (intersects.length > 0) {
+            const hit = intersects[0];
+            console.log('Hit object:', hit.object.name || hit.object, 'at', hit.point);
+            // Later: apply damage, spawn impact effect, etc.
         }
-
-        this.velocity.addScaledVector(wishDir, accelSpeed);
     }
 
-    update(deltaTime) {
+    update(dt) {
         if (!this.controlsEnabled) return;
 
-        // Apply movement input
-        const maxGroundSpeed = 10; // tune
+        // 1) Input -> command
         const { wishDir, wantsJump } = this.getMovementCommand();
 
+        // 2) Movement
         if (this.onFloor) {
-            this.applyGroundFriction(deltaTime);
-            this.groundAccelerate(wishDir, maxGroundSpeed, deltaTime);
-
+            this.applyGroundFriction(dt);
+            this.groundAccelerate(wishDir, this.maxGroundSpeed, dt);
             if (wantsJump) {
                 this.velocity.y = this.jumpSpeed;
                 this.onFloor = false;
             }
         } else {
-            this.airAccelerate(wishDir, maxGroundSpeed * 0.5, deltaTime);
-            this.velocity.y -= this.GRAVITY * deltaTime;
+            this.airAccelerate(wishDir, this.maxAirSpeed, dt);
         }
 
-        // Integrate position
-        const delta = this.velocity.clone().multiplyScalar(deltaTime);
-        this.collider.translate(delta);
+        // 3) Gravity
+        this.applyGravity(dt);
 
-        // resolve collisions & update onFloor
+        // 4) Integrate position via capsule
+        const deltaPos = this.velocity.clone().multiplyScalar(dt);
+        this.collider.translate(deltaPos);
+
+        // 5) Collisions
         this.checkCollisions();
 
-        // Update camera position to player/collider
+        // 6) Shooting
+        this.tryShoot(dt);
+
+        // 7) Map simulation -> camera
         this.camera.fpsCamera.position.copy(this.collider.end);
 
-        // Update HUD speed readout (horizontal speed only)
+        // 8) HUD
         if (this.speedElement) {
             const horizontalSpeed = Math.sqrt(
                 this.velocity.x * this.velocity.x +
@@ -254,9 +340,11 @@ export default class Player {
         }
     }
 
+    // --- Control enabling/disabling --- //
     disableControls() {
         this.controlsEnabled = false;
         this.clearKeyStates();
+        this.isFiring = false;
     }
 
     enableControls() {

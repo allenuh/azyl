@@ -7,8 +7,18 @@ export default class Resources extends EventEmitter {
         super();
 
         this.items = {};
-        // this.assets = assets;
-        // this.location = "westgate";
+        this.assets = assets || [
+            {
+                name: 'azylworld',
+                type: 'gltf',
+                path: '/src/assets/models/azylworld5.glb',
+            },
+            {
+                name: 'museum',
+                type: 'gltf',
+                path: '/src/assets/models/Museum.glb',
+            },
+        ];
 
         this.loaders = new Loaders().loaders;
 
@@ -16,22 +26,34 @@ export default class Resources extends EventEmitter {
     }
 
     startLoading() {
-        // this.loaded = 0;
-        // this.queue = this.assets[0][this.location].assets.length;
+        this.loaded = 0;
+        this.queue = this.assets.length;
 
-        this.loaders.gltfLoader.load('/src/assets/models/azylworld5.glb', (gltf) => {
-            this.singleAssetLoaded() 
+        this.assets.forEach((asset) => {
+            if (asset.type === 'gltf') {
+                this.loaders.gltfLoader.load(
+                    asset.path,
+                    (gltf) => this.singleAssetLoaded(asset, gltf),
+                    undefined,
+                    (error) => {
+                        console.error(`Error loading asset "${asset.name}" from ${asset.path}:`, error);
+                        this.singleAssetLoaded(asset, null);
+                    },
+                );
+            }
         });
     }
 
     singleAssetLoaded(asset, file) {
-        // this.items[asset.name] = file;
-        // this.loaded++;
-        // this.emit("loading", this.loaded, this.queue);
+        if (asset && file) {
+            this.items[asset.name] = file;
+        }
 
-        // if (this.loaded === this.queue) {
-        //     this.emit("ready");
-        // }
-        this.emit("ready");
+        this.loaded++;
+        this.emit('loading', this.loaded, this.queue);
+
+        if (this.loaded === this.queue) {
+            this.emit('ready', this.items);
+        }
     }
 }
