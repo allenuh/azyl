@@ -34,11 +34,6 @@ export default class Spheres {
       });
     }
 
-    document.body.addEventListener('mouseup', () => this.throw());
-    this.canvas.addEventListener('mousedown', () => {
-      document.body.requestPointerLock();
-      this.mouseTime = performance.now();
-    });
   }
 
   throw() {

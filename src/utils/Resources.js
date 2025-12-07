@@ -1,6 +1,5 @@
 import Loaders from "./Loaders.js";
 import { EventEmitter } from "events";
-import * as THREE from "three";
 
 export default class Resources extends EventEmitter {
     constructor(assets) {
@@ -17,6 +16,21 @@ export default class Resources extends EventEmitter {
                 name: 'museum',
                 type: 'gltf',
                 path: '/src/assets/models/Museum.glb',
+            },
+            {
+                name: 'soldier',
+                type: 'gltf',
+                path: '/src/assets/models/Soldier.glb',
+            },
+            {
+                name: 'deathmatch_arena',
+                type: 'gltf',
+                path: '/src/assets/models/dm.glb',
+            },
+            {
+                name: 'grey_arena',
+                type: 'gltf',
+                path: '/src/assets/models/1v1.glb',
             },
         ];
 

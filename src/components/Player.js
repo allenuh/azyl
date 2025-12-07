@@ -9,6 +9,7 @@ export default class Player {
         this.octree = this.app.world.octree;
         this.scene = this.app.scene;
         this.clock = this.app.clock;
+        this.canvas = this.app.canvas;
 
         // simulation variables
         this.collider = new Capsule(
@@ -27,7 +28,7 @@ export default class Player {
         this.GRAVITY = 32;
         this.maxGroundSpeed = 10;
         this.maxAirSpeed = 5;
-        this.jumpSpeed = 10;
+        this.jumpSpeed = 12;
 
         // input state
         this.keyStates = {};
@@ -54,8 +55,8 @@ export default class Player {
         document.addEventListener('keyup', (e) => this.handleKeyUp(e));
         document.body.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         document.body.addEventListener('wheel', (e) => this.handleMouseWheel(e));
-        document.body.addEventListener('mousedown', (e) => {this.handleMouseDown(e)});
-        document.body.addEventListener('mouseup', (e) => {this.handleMouseUp(e)});
+        document.body.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+        document.body.addEventListener('mouseup', (e) => this.handleMouseUp(e));
     }
 
     initPlayer(){
@@ -122,6 +123,9 @@ export default class Player {
     
     handleMouseDown(event) {
         if (!this.controlsEnabled) return;
+        if (document.pointerLockElement !== document.body) {
+            document.body.requestPointerLock();
+        }
         if (event.button === 0) {
             this.isFiring = true;
         }
@@ -200,13 +204,11 @@ export default class Player {
         this.velocity.y -= this.GRAVITY * dt;
     }
 
-    // normalize wish direction so moving diagonally doesn't go faster which would result in sqrt(2) times normal speed
-    // use dot product so speed is only increased along the wish direction
     // use explicit maxGroundSpeed and groundAcceleration
     groundAccelerate(wishDir, maxSpeed, dt) {
         if (!wishDir || wishDir.lengthSq() === 0) return; 
 
-        const accel = 50; // tune, ground acceleration
+        const accel = 15; // tune, ground acceleration
         const wishSpeed = maxSpeed; // tune with scaling by input strength
 
         // current speed along wish direction
@@ -214,7 +216,7 @@ export default class Player {
         const addSpeed = wishSpeed - currentSpeed;
         if (addSpeed <= 0) return;
 
-        let accelSpeed = accel * dt * wishSpeed;
+        let accelSpeed = accel * wishSpeed * dt;
         if (accelSpeed > addSpeed) {
             accelSpeed = addSpeed;
         }
@@ -225,19 +227,21 @@ export default class Player {
     airAccelerate(wishDir, maxAirSpeed, dt) {
         if (!wishDir || wishDir.lengthSq() === 0) return;
 
-        const accel = 40; // tune, air acceleration
+        const accel = 25; // tune, air acceleration
         const wishSpeed = maxAirSpeed; // tune with scaling by input strength
         
         const currentSpeed = this.velocity.dot(wishDir);
         const addSpeed = wishSpeed - currentSpeed;
         if (addSpeed <= 0) return;
 
-        let accelSpeed = accel * dt * wishSpeed;
+        let accelSpeed = accel * wishSpeed * dt;
         if (accelSpeed > addSpeed) {
             accelSpeed = addSpeed;
         }
 
-        this.velocity.addScaledVector(wishDir, accelSpeed);
+        // for (let i = 0; i < 3; i++) {
+            this.velocity.addScaledVector(wishDir, accelSpeed);
+        // }
     }
 
     checkCollisions() {
@@ -292,7 +296,31 @@ export default class Player {
         if (intersects.length > 0) {
             const hit = intersects[0];
             console.log('Hit object:', hit.object.name || hit.object, 'at', hit.point);
-            // Later: apply damage, spawn impact effect, etc.
+
+            // Apply damage to test dummy if hit
+            const world = this.app.world;
+            if (world && world.dummy && world.dummy.root) {
+                let obj = hit.object;
+                let hitDummy = false;
+
+                while (obj) {
+                    if (obj === world.dummy.root) {
+                        hitDummy = true;
+                        break;
+                    }
+                    obj = obj.parent;
+                }
+
+                if (hitDummy && world.dummy.health > 0) {
+                    world.dummy.health = Math.max(0, world.dummy.health - 10);
+                    console.log(`Dummy hit! Health: ${world.dummy.health}`);
+
+                    if (world.dummy.health === 0) {
+                        world.dummy.root.visible = false;
+                        console.log('Dummy eliminated.');
+                    }
+                }
+            }
         }
     }
 

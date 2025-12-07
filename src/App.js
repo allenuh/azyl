@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
 import Resources from "./utils/Resources.js"
+import assets from "./utils/assets.js";
 import ChatOverlay from "./components/ChatOverlay.js";
 import ChatClient from "./services/ChatClient.js";
+import CrosshairOverlay from "./components/CrosshairOverlay.js";
 import Lights from './core/Lights.js';
 import Renderer from './core/Renderer.js';
 import World from './components/World.js'
 import Player from './components/Player.js';
-import Spheres from './components/Spheres.js';
 import Camera from './core/Camera.js';
 
 export default class App {
@@ -31,9 +32,9 @@ export default class App {
         this.setResources();
         this.setWorld();
         this.setPlayer();
-        this.setSpheres();
         this.setStats();
         this.setChat();
+        this.setHud();
         this.update();
 
         window.addEventListener('resize', () => this.onWindowResize());
@@ -56,6 +57,7 @@ export default class App {
     }
 
     setResources(){
+        // this.resources = new Resources(assets);
         this.resources = new Resources();
     }
 
@@ -70,14 +72,11 @@ export default class App {
         }
     }
 
-    setSpheres(){
-        this.spheres = new Spheres();
-        if (this.world){
-            this.world.setSpheres(this.spheres);
-        }
+    setEvents(){
     }
 
-    setEvents(){
+    setHud() {
+        this.crosshairOverlay = new CrosshairOverlay();
     }
 
     setChat() {

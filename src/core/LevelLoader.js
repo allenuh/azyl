@@ -19,6 +19,14 @@ export default class LevelLoader {
                 resourceName: 'museum',
                 onLoaded: (gltf) => this.addLevelScene(gltf),
             },
+            deathmatch_arena: {
+                resourceName: 'deathmatch_arena',
+                onLoaded: (gltf) => this.addLevelScene(gltf),
+            },
+            grey_arena: {
+                resourceName: 'grey_arena',
+                onLoaded: (gltf) => this.addLevelScene(gltf),
+            },
         };
     }
 
@@ -38,8 +46,8 @@ export default class LevelLoader {
         const root = gltf.scene;
         root.traverse((child) => {
             if (child.isMesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
+                // child.castShadow = true;
+                // child.receiveShadow = true;
             }
         });
 

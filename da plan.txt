@@ -13,3 +13,34 @@ todo:
 - multiplayer
     - client side prediction
     - lag 
+
+- target dummy
+- remove spheres and just make it mouse controls instead.
+- 270 deg bhop to get to secret item for secret level
+
+nov 26
+
+- game mode:
+    - 1v1
+    - lobby
+    - probably needs start and end loop and conditions to know when to start/stop the game
+- fine tuned gunplay
+- fine tuned movement:
+    - air movement too "erratic"
+    - needs deacceleration and slower acceleration on the ground (maybe more friction?)
+    - slipping on slopes
+- multiplayer
+- implement secret room 
+
+- pickups
+    - health kit
+    - ammo
+- different game modes for the future:
+    - king of the hill mode
+    - deathmatch mode
+    - 1v1 arena mode like in counter strike community servers
+
+done:
+- make a simple greybox stage in blender
+    - start with 20x20 grid of squares and pull them up, add ramps and bridges and other elements for more dynamic gameplay
+- make another greybox stage in blender to practice switching between stages
